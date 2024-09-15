@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Rejestracja</title>
+    <link rel="stylesheet" type="text/css" href="css/styles.css">
+</head>
+<body>
+    <div class="registration-container">
+        <h1>Rejestracja</h1>
+        <form id="registerForm">
+            <label for="username">Nazwa użytkownika:</label>
+            <input type="text" id="username" name="username">
+            <span id="usernameError" class="error"></span>
+            
+            <label for="password">Hasło:</label>
+            <input type="password" id="password" name="password">
+            
+            <label for="firstName">Imię:</label>
+            <input type="text" id="firstName" name="firstName">
+            
+            <label for="lastName">Nazwisko:</label>
+            <input type="text" id="lastName" name="lastName">
+            
+            <label for="email">Email:</label>
+            <input type="email" id="email" name="email">
+            
+            <label for="phoneNumber">Nr telefonu:</label>
+            <input type="text" id="phoneNumber" name="phoneNumber">
+            
+            <input type="submit" value="Zarejestruj">
+        </form>
+    </div>
+
+    <script>
+        document.getElementById('registerForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            document.getElementById('usernameError').textContent = '';
+
+            const data = {
+                username: document.getElementById('username').value,
+                password: document.getElementById('password').value,
+                role: 'client',
+                firstName: document.getElementById('firstName').value,
+                lastName: document.getElementById('lastName').value,
+                email: document.getElementById('email').value,
+                phoneNumber: document.getElementById('phoneNumber').value
+            };
+            
+            const response = await fetch('/registerClient', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            });
+
+            if (response.ok) {
+                alert('Zarejestrowano pomyślnie');
+                window.location.href = 'login.html';
+            } else {
+                const result = await response.json();
+                if (result.message === 'Nazwa użytkownika jest już zajęta') {
+                    document.getElementById('usernameError').textContent = result.message;
+                } else {
+                    alert('Błąd rejestracji: ' + result.message);
+                }
+            }
+        });
+    </script>
+</body>
+</html>

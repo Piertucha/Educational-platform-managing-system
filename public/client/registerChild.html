@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Rejestracja Dziecka</title>
+    <link rel="stylesheet" type="text/css" href="../css/styles.css">
+</head>
+
+<body>
+    <h1>Rejestracja Dziecka</h1>
+    <form id="registerChildForm">
+        <label for="firstName">Imię:</label><br>
+        <input type="text" id="firstName" name="firstName" required><br>
+        <label for="lastName">Nazwisko:</label><br>
+        <input type="text" id="lastName" name="lastName" required><br>
+        <label for="class">Klasa:</label><br>
+        <select id="class" name="class" required>
+            <optgroup label="Szkoła podstawowa">
+                <option value="3">Klasa 3</option>
+                <option value="4">Klasa 4</option>
+                <option value="5">Klasa 5</option>
+                <option value="6">Klasa 6</option>
+                <option value="7">Klasa 7</option>
+                <option value="8">Klasa 8</option>
+            </optgroup>
+            <optgroup label="Szkoła średnia">
+                <option value="9">Klasa 1</option>
+                <option value="10">Klasa 2</option>
+                <option value="11">Klasa 3</option>
+                <option value="12">Klasa 4</option>
+            </optgroup>
+        </select><br>
+        <input type="submit" value="Dodaj Dziecko">
+    </form>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async function () {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                alert('Musisz być zalogowany, aby zobaczyć tę stronę.');
+                window.location.href = '../login.html';
+                return;
+            }
+            const roleResponse = await fetch('/role', {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (roleResponse.ok) {
+                const roleResult = await roleResponse.json();
+                if (roleResult.role !== 'client') {
+                    alert('Nie masz uprawnień do tej strony.');
+                    window.location.href = '../login.html';
+                    return;
+                }
+            } else {
+                alert('Nie udało się zweryfikować roli użytkownika.');
+                window.location.href = '../login.html';
+                return;
+            }
+            // Pobierz profil rodzica, aby ustawić nazwisko dziecka
+            try {
+                const profileResponse = await fetch('/client/profile', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (profileResponse.ok) {
+                    const profile = await profileResponse.json();
+                    document.getElementById('lastName').value = profile.last_name;
+                } else {
+                    const result = await profileResponse.json();
+                    alert('Błąd: ' + result.message);
+                }
+            } catch (err) {
+                console.error('Error fetching profile:', err);
+            }
+
+            document.getElementById('registerChildForm').addEventListener('submit', async function(e) {
+                e.preventDefault();
+
+                const data = {
+                    firstName: document.getElementById('firstName').value,
+                    lastName: document.getElementById('lastName').value,
+                    class: document.getElementById('class').value
+                };
+
+                const response = await fetch('/addChild', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    alert('Dziecko zostało dodane pomyślnie.');
+                    window.location.href = 'dashboard.html'; // Przekierowanie na dashboard klienta
+                } else {
+                    const result = await response.json();
+                    alert('Błąd: ' + result.message);
+                }
+            });
+        });
+    </script>
+</body>
+
+</html>

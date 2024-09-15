@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Wyszukaj Grupy</title>
+    <link rel="stylesheet" type="text/css" href="../css/styles.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+        }
+
+        h1 {
+            text-align: center;
+            margin-top: 20px;
+            color: #333;
+        }
+
+        form {
+            max-width: 600px;
+            margin: 20px auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        select {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        #results {
+            max-width: 600px;
+            margin: 20px auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        #joinGroupForm {
+            max-width: 600px;
+            margin: 20px auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .groupDiv {
+            padding: 10px;
+            border: 1px solid #ccc;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .groupDiv:hover {
+            background-color: #f0f0f0;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Wyszukaj Grupy</h1>
+    <form id="searchForm">
+        <label for="course">Rodzaj kursu:</label>
+        <select id="course" name="course">
+            <option value="">--</option>
+            <option value="Język angielski">Język angielski</option>
+            <option value="Język niemiecki">Język niemiecki</option>
+            <option value="Język hiszpański">Język hiszpański</option>
+            <option value="Język polski">Język polski</option>
+            <option value="Matematyka">Matematyka</option>
+            <option value="Programowanie">Programowanie</option>
+            <option value="Gitara">Gitara</option>
+            <option value="Szachy">Szachy</option>
+        </select><br>
+
+        <label for="level">Poziom:</label>
+        <select id="level" name="level">
+            <option value="">--</option>
+            <option value="1">Poziom 1 (Klasy 3-4 szkoły podstawowej)</option>
+            <option value="2">Poziom 2 (Klasy 5-6 szkoły podstawowej)</option>
+            <option value="3">Poziom 3 (Klasy 7-8 szkoły podstawowej)</option>
+            <option value="4">Poziom 4 (Klasy 1-2 szkoły średniej)</option>
+            <option value="5">Poziom 5 (Klasy 3-4 szkoły średniej)</option>
+        </select><br>
+
+        <label for="day">Dzień tygodnia:</label>
+        <select id="day" name="day">
+            <option value="">--</option>
+            <option value="Monday">Poniedziałek</option>
+            <option value="Tuesday">Wtorek</option>
+            <option value="Wednesday">Środa</option>
+            <option value="Thursday">Czwartek</option>
+            <option value="Friday">Piątek</option>
+            <option value="Saturday">Sobota</option>
+        </select><br>
+
+        <label for="time">Godzina:</label>
+        <select id="time" name="time">
+            <option value="">--</option>
+            <option value="15:00">15:00</option>
+            <option value="16:10">16:10</option>
+            <option value="17:20">17:20</option>
+            <option value="18:30">18:30</option>
+            <option value="19:40">19:40</option>
+            <option value="09:00">09:00 (Sobota)</option>
+            <option value="10:10">10:10 (Sobota)</option>
+            <option value="11:20">11:20 (Sobota)</option>
+            <option value="12:30">12:30 (Sobota)</option>
+        </select><br>
+    </form>
+
+    <div id="results"></div>
+    <div id="joinGroupForm" style="display:none;">
+        <h2>Zapisz dziecko do grupy</h2>
+        <label for="childSelect">Wybierz dziecko:</label>
+        <select id="childSelect"></select><br>
+        <button id="joinGroupButton">Zapisz</button>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async function () {
+            const token = localStorage.getItem('token');
+            console.log('Token z localStorage:', token); // Dodano linię debugowania
+            if (!token) {
+                alert('Musisz być zalogowany, aby zobaczyć tę stronę.');
+                window.location.href = '../login.html';
+                return;
+            }
+
+            const roleResponse = await fetch('/role', {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (roleResponse.ok) {
+                const roleResult = await roleResponse.json();
+                if (roleResult.role !== 'client') {
+                    alert('Nie masz uprawnień do tej strony.');
+                    window.location.href = '../login.html';
+                    return;
+                }
+            } else {
+                alert('Nie udało się zweryfikować roli użytkownika.');
+                window.location.href = '../login.html';
+                return;
+            }
+
+            const formElements = document.querySelectorAll('#course, #level, #day, #time');
+            formElements.forEach(element => {
+                element.addEventListener('change', filterGroups);
+            });
+
+            async function filterGroups() {
+                const course = document.getElementById('course').value || null;
+                const level = document.getElementById('level').value || null;
+                const day = document.getElementById('day').value || null;
+                const time = document.getElementById('time').value || null;
+
+                const response = await fetch('/client/searchGroups', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify({ course, level, day, time })
+                });
+
+                if (response.ok) {
+                    const groups = await response.json();
+                    const resultsDiv = document.getElementById('results');
+                    resultsDiv.innerHTML = '';
+
+                    groups.forEach(group => {
+                        const groupDiv = document.createElement('div');
+                        const formattedTime = group.time.split('T')[1].substring(0, 5);
+                        groupDiv.className = 'groupDiv';
+                        groupDiv.innerHTML = `Dział: ${group.department}, Poziom: ${group.level}, Dzień: ${group.day_of_week}, Godzina: ${formattedTime}`;
+                        groupDiv.addEventListener('click', () => showJoinGroupForm(group.id, level));
+                        resultsDiv.appendChild(groupDiv);
+                    });
+                } else {
+                    alert('Błąd podczas wyszukiwania grup');
+                }
+            }
+
+            async function showJoinGroupForm(groupId, level) {
+                try {
+                    const response = await fetch(`/client/children?level=${level}`, {
+                        method: 'GET',
+                        headers: {
+                            'Authorization': `Bearer ${localStorage.getItem('token')}`
+                        }
+                    });
+
+                    if (response.ok) {
+                        const children = await response.json();
+                        const childSelect = document.getElementById('childSelect');
+                        childSelect.innerHTML = '';
+
+                        children.forEach(child => {
+                            const option = document.createElement('option');
+                            option.value = child.id;
+                            option.textContent = `${child.first_name} ${child.last_name}`;
+                            childSelect.appendChild(option);
+                        });
+
+                        document.getElementById('joinGroupForm').style.display = 'block';
+                        document.getElementById('joinGroupButton').onclick = () => joinGroup(groupId);
+                    } else {
+                        const result = await response.json();
+                        console.error('Error response from server:', result);
+                        alert('Błąd podczas pobierania dzieci: ' + result.message);
+                    }
+                } catch (error) {
+                    console.error('Error fetching children:', error);
+                }
+            }
+
+            async function joinGroup(groupId) {
+                const childId = document.getElementById('childSelect').value;
+
+                const response = await fetch('/client/joinGroup', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify({ groupId, childId })
+                });
+
+                if (response.ok) {
+                    alert('Dziecko zostało zapisane do grupy');
+                    document.getElementById('joinGroupForm').style.display = 'none';
+                    window.location.href = '/client/dashboard.html'; // Przekierowanie do dashboardu klienta
+                } else {
+                    alert('Błąd podczas zapisywania dziecka do grupy');
+                }
+            }
+        });
+    </script>
+</body>
+
+</html>

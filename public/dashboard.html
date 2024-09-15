@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                alert('Token jest wymagany do autoryzacji');
+                window.location.href = '/login.html';
+                return;
+            }
+
+            fetch('/role', {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.role === 'admin') {
+                    window.location.href = '/admin/dashboard.html';
+                } else if (data.role === 'client') {
+                    window.location.href = '/client/dashboard.html';
+                } else if (data.role === 'employee') {
+                    window.location.href = '/employee/dashboard.html';
+                } else {
+                    alert('Nieznana rola użytkownika');
+                    window.location.href = '/login.html';
+                }
+            })
+            .catch(error => {
+                console.error('Błąd:', error);
+                alert('Token jest nieprawidłowy lub wygasł');
+                window.location.href = '/login.html';
+            });
+        });
+    </script>
+</head>
+<body>
+    <h1>Dashboard</h1>
+</body>
+</html>

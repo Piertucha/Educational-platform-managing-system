@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Dodaj Pracownika</title>
+    <link rel="stylesheet" type="text/css" href="../css/styles.css">
+</head>
+
+<body>
+    <h1>Dodaj Pracownika</h1>
+    <form id="registerEmployeeForm">
+        <label for="firstName">Imię:</label>
+        <input type="text" id="firstName" name="firstName" required><br>
+
+        <label for="lastName">Nazwisko:</label>
+        <input type="text" id="lastName" name="lastName" required><br>
+
+        <label for="email">Email:</label>
+        <input type="email" id="email" name="email" required><br>
+
+        <label for="phoneNumber">Nr telefonu:</label>
+        <input type="text" id="phoneNumber" name="phoneNumber" required><br>
+
+        <label for="department">Dział:</label>
+        <select id="department" name="department" required>
+            <option value="Język angielski">Język angielski</option>
+            <option value="Język niemiecki">Język niemiecki</option>
+            <option value="Język hiszpański">Język hiszpański</option>
+            <option value="Matematyka">Matematyka</option>
+            <option value="Programowanie">Programowanie</option>
+            <option value="Język Polski">Język Polski</option>
+            <option value="Gitara">Gitara</option>
+            <option value="Szachy">Szachy</option>
+        </select><br>
+
+        <label for="hourlyRate">Stawka za godzinę:</label>
+        <input type="number" id="hourlyRate" name="hourlyRate" required><br>
+
+        <label for="username">Nazwa użytkownika:</label>
+        <input type="text" id="username" name="username" required><br>
+
+        <label for="password">Hasło:</label>
+        <input type="password" id="password" name="password" required><br>
+
+        <button type="submit">Zarejestruj</button>
+    </form>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async function () {
+            const token = localStorage.getItem('token');
+            console.log('Token z localStorage:', token); // Dodano linię debugowania
+            if (!token) {
+                alert('Musisz być zalogowany, aby zobaczyć tę stronę.');
+                window.location.href = '../login.html';
+                return;
+            }
+
+            const roleResponse = await fetch('/role', {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (roleResponse.ok) {
+                const roleResult = await roleResponse.json();
+                if (roleResult.role !== 'admin') {
+                    alert('Nie masz uprawnień do tej strony.');
+                    window.location.href = '../login.html';
+                    return;
+                }
+            } else {
+                alert('Nie udało się zweryfikować roli użytkownika.');
+                window.location.href = '../login.html';
+                return;
+            }
+
+            document.getElementById('registerEmployeeForm').addEventListener('submit', async function (event) { // Zmieniono na 'registerEmployeeForm'
+                event.preventDefault();
+
+                const formData = new FormData(event.target);
+                const data = {
+                    firstName: formData.get('firstName'),
+                    lastName: formData.get('lastName'),
+                    email: formData.get('email'),
+                    phoneNumber: formData.get('phoneNumber'),
+                    department: formData.get('department'),
+                    hourlyRate: formData.get('hourlyRate'),
+                    username: formData.get('username'),
+                    password: formData.get('password')
+                };
+
+                const response = await fetch('/admin/registerEmployee', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    alert('Pracownik został zarejestrowany.');
+                    window.location.href = '/admin/dashboard.html';
+                } else {
+                    const result = await response.json();
+                    alert('Błąd: ' + result.message);
+                }
+            });
+        });
+    </script>
+</body>
+
+</html>

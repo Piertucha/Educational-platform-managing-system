@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dashboard Pracownika</title>
+    <link rel="stylesheet" type="text/css" href="../css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/3.10.2/fullcalendar.min.css" />
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/3.10.2/fullcalendar.min.js"></script>
+    <style>
+        /* Ogólny styl strony */
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(to right, #8e44ad, #9b59b6);
+            margin: 0;
+            padding: 0;
+            color: #ffffff;
+            text-align: center;
+        }
+
+        /* Styl nagłówka */
+        h1 {
+            margin-top: 30px;
+            color: #ffffff;
+            text-shadow: 2px 2px 5px #333;
+        }
+
+        h2 {
+            color: #f7f7f7;
+        }
+
+        /* Styl przycisków */
+        button {
+            display: inline-block;
+            margin: 15px;
+            padding: 10px 20px;
+            background-color: #7f8c8d;
+            color: #ffffff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #95a5a6;
+        }
+
+        /* Styl dla tekstu */
+        p {
+            font-size: 18px;
+            margin: 10px 0;
+        }
+
+        /* Styl dla kalendarza */
+        #calendar {
+            max-width: 900px;
+            margin: 30px auto;
+            padding: 10px;
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+            color: #333;
+        }
+
+        /* Styl dla formularza obecności */
+        #attendanceForm {
+            display: none;
+            background: #fff;
+            color: #333;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+            max-width: 500px;
+            margin: 20px auto;
+        }
+
+        #attendanceForm h2 {
+            color: #333;
+        }
+
+        #studentsList {
+            text-align: left;
+            margin: 20px 0;
+        }
+
+        /* Styl dla każdej grupy */
+        #groupInfo div {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            color: #ffffff;
+        }
+
+        /* Responsive */
+        @media (max-width: 600px) {
+            body {
+                padding: 10px;
+            }
+
+            #calendar, #attendanceForm {
+                width: 100%;
+                padding: 10px;
+            }
+
+            button {
+                width: 90%;
+                margin: 5px auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>Dashboard Pracownika</h1>
+    <button id="logoutButton">Wyloguj się</button>
+    <h2>Witaj ponownie, <span id="employeeName"></span>!</h2>
+    <p id="employeeFullName"></p>
+    <button onclick="window.location.href='/employee/editAvailability.html'">Edytuj dyspozycyjność</button>
+    <p>Przeprowadzone lekcje: <span id="lessonCount"></span></p>
+    <p>Liczba grup, które prowadzisz: <span id="groupCount"></span></p>
+    <div id="calendar"></div>
+
+    <div id="attendanceForm" style="display:none;">
+        <h2>Zaznacz obecność uczniów</h2>
+        <div id="studentsList"></div>
+        <button id="saveAttendanceButton">Zapisz obecność</button>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async function () {
+            const token = localStorage.getItem('token');
+            console.log('Token z localStorage:', token);
+            if (!token) {
+                alert('Musisz być zalogowany, aby zobaczyć tę stronę.');
+                window.location.href = '../login.html';
+                return;
+            }
+
+            const roleResponse = await fetch('/role', {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (roleResponse.ok) {
+                const roleResult = await roleResponse.json();
+                if (roleResult.role !== 'employee') {
+                    alert('Nie masz uprawnień do tej strony.');
+                    window.location.href = '../login.html';
+                    return;
+                }
+            } else {
+                alert('Nie udało się zweryfikować roli użytkownika.');
+                window.location.href = '../login.html';
+                return;
+            }
+
+            const profileResponse = await fetch('/employee/profile', {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (profileResponse.ok) {
+                const profile = await profileResponse.json();
+                console.log('Employee profile:', profile);
+                document.getElementById('employeeName').textContent = profile.first_name;
+                document.getElementById('employeeFullName').textContent = `${profile.first_name} ${profile.last_name}`;
+
+                // Poprawione pobieranie teacherId
+                const teacherId = profile.teacher_id || profile.id;
+                console.log('Teacher ID:', teacherId);
+
+                if (!teacherId) {
+                    console.error('Teacher ID is undefined or null');
+                    return;
+                }
+
+                // Poprawione zapytania
+                const lessonCountResponse = await fetch(`/employee/lessonCount?teacherId=${teacherId}`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                if (lessonCountResponse.ok) {
+                    const lessonCount = await lessonCountResponse.json();
+                    document.getElementById('lessonCount').textContent = lessonCount.count;
+                } else {
+                    console.error('Failed to fetch lesson count');
+                }
+
+                const groupCountResponse = await fetch(`/employee/groupCount?teacherId=${teacherId}`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                if (groupCountResponse.ok) {
+                    const groupCount = await groupCountResponse.json();
+                    document.getElementById('groupCount').textContent = groupCount.count;
+                } else {
+                    console.error('Failed to fetch group count');
+                }
+            } else {
+                const result = await profileResponse.json();
+                alert('Błąd: ' + result.message);
+            }
+
+            try {
+                const sessionsResponse = await fetch('/employee/sessions', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (sessionsResponse.ok) {
+                    const sessions = await sessionsResponse.json();
+                    console.log('Sesje:', sessions);
+                    $('#calendar').fullCalendar({
+                        events: sessions.map(session => ({
+                            title: session.group_name,
+                            start: `${session.session_date.split('T')[0]}T${session.time.split('T')[1]}`,
+                            color: session.status === 'Scheduled' ? 'blue' : 'green',
+                            id: session.id
+                        })),
+                        eventClick: function (calEvent) {
+                            handleEventClick(calEvent.id);
+                        }
+                    });
+                } else {
+                    const result = await sessionsResponse.json();
+                    alert('Błąd: ' + result.message);
+                }
+            } catch (err) {
+                console.error('Error fetching sessions:', err);
+            }
+
+            document.getElementById('logoutButton').addEventListener('click', function () {
+                localStorage.removeItem('token');
+                window.location.href = '../index.html';
+            });
+        });
+
+        async function handleEventClick(sessionId) {
+            const present = confirm('Czy wszyscy obecni?');
+
+            if (present) {
+                await saveAttendance(sessionId, true);
+            } else {
+                showAttendanceForm(sessionId);
+            }
+        }
+
+        async function saveAttendance(sessionId, present) {
+            const token = localStorage.getItem('token');
+            const response = await fetch('/employee/attendance', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    sessionId,
+                    present
+                })
+            });
+
+            if (response.ok) {
+                const calendarEvent = $('#calendar').fullCalendar('clientEvents', sessionId)[0];
+                calendarEvent.color = 'green';
+                $('#calendar').fullCalendar('updateEvent', calendarEvent);
+                alert('Obecność zapisana');
+            } else {
+                alert('Błąd przy zapisywaniu obecności');
+            }
+        }
+
+        async function showAttendanceForm(sessionId) {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`/employee/session/${sessionId}/students`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (response.ok) {
+                const students = await response.json();
+                const studentsListDiv = document.getElementById('studentsList');
+                studentsListDiv.innerHTML = '';
+
+                students.forEach(student => {
+                    const studentDiv = document.createElement('div');
+                    studentDiv.innerHTML = `
+                        <label>
+                            <input type="checkbox" data-student-id="${student.id}" checked>
+                            ${student.first_name} ${student.last_name}
+                        </label>
+                    `;
+                    studentsListDiv.appendChild(studentDiv);
+                });
+
+                document.getElementById('attendanceForm').style.display = 'block';
+                document.getElementById('saveAttendanceButton').onclick = () => saveIndividualAttendance(sessionId);
+            } else {
+                alert('Błąd przy pobieraniu uczniów');
+            }
+        }
+
+        async function saveIndividualAttendance(sessionId) {
+            const token = localStorage.getItem('token');
+            const checkboxes = document.querySelectorAll('#studentsList input[type="checkbox"]');
+            const attendance = Array.from(checkboxes).map(checkbox => ({
+                studentId: checkbox.getAttribute('data-student-id'),
+                present: checkbox.checked
+            }));
+
+            const response = await fetch('/employee/attendance/individual', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    sessionId,
+                    attendance
+                })
+            });
+
+            if (response.ok) {
+                document.getElementById('attendanceForm').style.display = 'none';
+                const calendarEvent = $('#calendar').fullCalendar('clientEvents', sessionId)[0];
+                calendarEvent.color = 'green';
+                $('#calendar').fullCalendar('updateEvent', calendarEvent);
+                alert('Obecność zapisana');
+            } else {
+                alert('Błąd przy zapisywaniu obecności');
+            }
+        }
+    </script>
+</body>
+</html>

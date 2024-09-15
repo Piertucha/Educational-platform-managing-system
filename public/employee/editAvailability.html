@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Edycja Dyspozycyjności</title>
+    <link rel="stylesheet" type="text/css" href="../css/styles.css">
+</head>
+
+<body>
+    <h1>Twoja dostępność</h1>
+    <form id="availabilityForm">
+        <label for="timezone">Twoja strefa czasowa:</label>
+        <select id="timezone" name="timezone">
+            <option value="Europe/Warsaw">PL - Warsaw</option>
+            <!-- Dodaj inne strefy czasowe jeśli potrzebujesz -->
+        </select>
+
+        <!-- Dni tygodnia z możliwością dodawania godzin -->
+        <div id="days">
+            <!-- Poniżej dodaj resztę dni analogicznie -->
+            <div class="day">
+                <label for="monday">Poniedziałek:</label>
+                <input type="checkbox" id="monday_toggle" name="monday_toggle">
+                <input type="time" name="monday_start" disabled>
+                <input type="time" name="monday_end" disabled>
+            </div>
+            <!-- Inne dni -->
+            <div class="day">
+                <label for="tuesday">Wtorek:</label>
+                <input type="checkbox" id="tuesday_toggle" name="tuesday_toggle">
+                <input type="time" name="tuesday_start" disabled>
+                <input type="time" name="tuesday_end" disabled>
+            </div>
+            <div class="day">
+                <label for="wednesday">Środa:</label>
+                <input type="checkbox" id="wednesday_toggle" name="wednesday_toggle">
+                <input type="time" name="wednesday_start" disabled>
+                <input type="time" name="wednesday_end" disabled>
+            </div>
+            <div class="day">
+                <label for="thursday">Czwartek:</label>
+                <input type="checkbox" id="thursday_toggle" name="thursday_toggle">
+                <input type="time" name="thursday_start" disabled>
+                <input type="time" name="thursday_end" disabled>
+            </div>
+            <div class="day">
+                <label for="friday">Piątek:</label>
+                <input type="checkbox" id="friday_toggle" name="friday_toggle">
+                <input type="time" name="friday_start" disabled>
+                <input type="time" name="friday_end" disabled>
+            </div>
+            <div class="day">
+                <label for="saturday">Sobota:</label>
+                <input type="checkbox" id="saturday_toggle" name="saturday_toggle">
+                <input type="time" name="saturday_start" disabled>
+                <input type="time" name="saturday_end" disabled>
+            </div>
+        </div>
+
+        <button type="submit">Zapisz</button>
+    </form>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async function () {
+            const token = localStorage.getItem('token');
+            console.log('Token z localStorage:', token); // Dodano linię debugowania
+            if (!token) {
+                alert('Musisz być zalogowany, aby zobaczyć tę stronę.');
+                window.location.href = '../login.html';
+                return;
+            }
+
+            try {
+                const response = await fetch('/employee/profile', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (response.ok) {
+                    const profile = await response.json();
+                    if (profile.availability_schedule) {
+                        const availability = JSON.parse(profile.availability_schedule);
+
+                        document.getElementById('timezone').value = availability.timezone;
+
+                        ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].forEach(day => {
+                            const dayToggle = document.getElementById(`${day}_toggle`);
+                            const dayStart = document.querySelector(`[name="${day}_start"]`);
+                            const dayEnd = document.querySelector(`[name="${day}_end"]`);
+
+                            dayToggle.checked = availability[day].enabled;
+                            dayStart.value = availability[day].start;
+                            dayEnd.value = availability[day].end;
+
+                            if (availability[day].enabled) {
+                                dayStart.disabled = false;
+                                dayEnd.disabled = false;
+                            }
+                        });
+                    }
+                } else {
+                    const result = await response.json();
+                    alert('Błąd: ' + result.message);
+                }
+            } catch (err) {
+                console.error('Error fetching profile:', err);
+            }
+
+            document.querySelectorAll('input[type="checkbox"]').forEach(function (toggle) {
+                toggle.addEventListener('change', function (event) {
+                    const checked = event.target.checked;
+                    const timeInputs = event.target.parentElement.querySelectorAll('input[type="time"]');
+                    timeInputs.forEach(function (input) {
+                        input.disabled = !checked;
+                        input.required = checked;
+                    });
+                });
+            });
+
+            document.getElementById('availabilityForm').addEventListener('submit', async function (event) {
+                event.preventDefault();
+
+                const availability = {
+                    timezone: document.getElementById('timezone').value,
+                    monday: {
+                        enabled: document.querySelector('[name="monday_toggle"]').checked,
+                        start: document.querySelector('[name="monday_start"]').value,
+                        end: document.querySelector('[name="monday_end"]').value
+                    },
+                    tuesday: {
+                        enabled: document.querySelector('[name="tuesday_toggle"]').checked,
+                        start: document.querySelector('[name="tuesday_start"]').value,
+                        end: document.querySelector('[name="tuesday_end"]').value
+                    },
+                    wednesday: {
+                        enabled: document.querySelector('[name="wednesday_toggle"]').checked,
+                        start: document.querySelector('[name="wednesday_start"]').value,
+                        end: document.querySelector('[name="wednesday_end"]').value
+                    },
+                    thursday: {
+                        enabled: document.querySelector('[name="thursday_toggle"]').checked,
+                        start: document.querySelector('[name="thursday_start"]').value,
+                        end: document.querySelector('[name="thursday_end"]').value
+                    },
+                    friday: {
+                        enabled: document.querySelector('[name="friday_toggle"]').checked,
+                        start: document.querySelector('[name="friday_start"]').value,
+                        end: document.querySelector('[name="friday_end"]').value
+                    },
+                    saturday: {
+                        enabled: document.querySelector('[name="saturday_toggle"]').checked,
+                        start: document.querySelector('[name="saturday_start"]').value,
+                        end: document.querySelector('[name="saturday_end"]').value
+                    }
+                };
+
+                const response = await fetch('/employee/availability', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(availability)
+                });
+
+                if (response.ok) {
+                    alert('Dostępność została zapisana.');
+                    window.location.href = '/employee/dashboard.html';
+                } else {
+                    const result = await response.json();
+                    alert('Błąd: ' + result.message);
+                }
+            });
+        });
+    </script>
+</body>
+
+</html>

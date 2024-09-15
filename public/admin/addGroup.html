@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Dodaj Grupę</title>
+    <link rel="stylesheet" type="text/css" href="../css/styles.css">
+    <style>
+        /* Dodatkowe style dla formularza */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+
+        form {
+            max-width: 500px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        select, input[type="text"], button {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        button {
+            background-color: #007bff;
+            color: #fff;
+            font-size: 16px;
+            border: none;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Dodaj Grupę</h1>
+    <form id="addGroupForm">
+        <label for="department">Dział:</label>
+        <select id="department" name="department" required>
+            <option value="Język angielski">Język angielski</option>
+            <option value="Język niemiecki">Język niemiecki</option>
+            <option value="Język hiszpański">Język hiszpański</option>
+            <option value="Matematyka">Matematyka</option>
+            <option value="Programowanie">Programowanie</option>
+            <option value="Język Polski">Język Polski</option>
+            <option value="Gitara">Gitara</option>
+            <option value="Szachy">Szachy</option>
+        </select><br>
+
+        <label for="day_of_week">Dzień:</label>
+        <select id="day_of_week" name="day_of_week" required>
+            <option value="Monday">Poniedziałek</option>
+            <option value="Tuesday">Wtorek</option>
+            <option value="Wednesday">Środa</option>
+            <option value="Thursday">Czwartek</option>
+            <option value="Friday">Piątek</option>
+            <option value="Saturday">Sobota</option>
+        </select><br>
+
+        <label for="time">Godzina:</label>
+        <select id="time" name="time" required>
+            <option value="15:00">15:00</option>
+            <option value="16:10">16:10</option>
+            <option value="17:20">17:20</option>
+            <option value="18:30">18:30</option>
+            <option value="19:40">19:40</option>
+            <option value="09:00">09:00 (sobota)</option>
+            <option value="10:10">10:10 (sobota)</option>
+            <option value="11:20">11:20 (sobota)</option>
+            <option value="12:30">12:30 (sobota)</option>
+        </select><br>
+
+        <label for="teacherId">Nauczyciel:</label>
+        <select id="teacherId" name="teacherId" required></select><br>
+
+        <label for="level">Poziom:</label>
+        <select id="level" name="level" required>
+            <option value="1">Poziom 1 (Klasy 3-4 szkoły podstawowej)</option>
+            <option value="2">Poziom 2 (Klasy 5-6 szkoły podstawowej)</option>
+            <option value="3">Poziom 3 (Klasy 7-8 szkoły podstawowej)</option>
+            <option value="4">Poziom 4 (Klasy 1-2 szkoły średniej)</option>
+            <option value="5">Poziom 5 (Klasy 3-4 szkoły średniej)</option>
+        </select><br>
+
+        <button type="submit">Dodaj Grupę</button>
+    </form>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async function () {
+            const token = localStorage.getItem('token');
+            console.log('Token z localStorage:', token);
+            if (!token) {
+                alert('Musisz być zalogowany, aby zobaczyć tę stronę.');
+                window.location.href = '../login.html';
+                return;
+            }
+
+            const roleResponse = await fetch('/role', {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (roleResponse.ok) {
+                const roleResult = await roleResponse.json();
+                if (roleResult.role !== 'admin') {
+                    alert('Nie masz uprawnień do tej strony.');
+                    window.location.href = '../login.html';
+                    return;
+                }
+            } else {
+                alert('Nie udało się zweryfikować roli użytkownika.');
+                window.location.href = '../login.html';
+                return;
+            }
+
+            const departmentSelect = document.getElementById('department');
+            const daySelect = document.getElementById('day_of_week');
+            const timeSelect = document.getElementById('time');
+            const teacherSelect = document.getElementById('teacherId');
+
+            async function updateTeacherOptions() {
+                const department = departmentSelect.value;
+                const day = daySelect.value;
+                const time = timeSelect.value;
+
+                if (!department || !day || !time) return;
+
+                try {
+                    console.log('Pobieranie nauczycieli dla:', { department, day, time });
+                    const response = await fetch(`/admin/availableTeachers?department=${department}&day=${day}&time=${time}`, {
+                        method: 'GET',
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+                    });
+
+                    if (response.ok) {
+                        const teachers = await response.json();
+                        console.log('Dostępni nauczyciele:', teachers);
+                        teacherSelect.innerHTML = '';
+                        teachers.forEach(teacher => {
+                            const option = document.createElement('option');
+                            option.value = teacher.id;
+                            option.textContent = `${teacher.first_name} ${teacher.last_name}`;
+                            teacherSelect.appendChild(option);
+                        });
+                    } else {
+                        const result = await response.json();
+                        alert('Błąd: ' + result.message);
+                    }
+                } catch (error) {
+                    console.error('Błąd:', error);
+                    alert('Wystąpił błąd. Sprawdź konsolę, aby uzyskać więcej informacji.');
+                }
+            }
+
+            departmentSelect.addEventListener('change', updateTeacherOptions);
+            daySelect.addEventListener('change', updateTeacherOptions);
+            timeSelect.addEventListener('change', updateTeacherOptions);
+
+            document.getElementById('addGroupForm').addEventListener('submit', async function (event) {
+                event.preventDefault();
+
+                const formData = new FormData(event.target);
+                const data = {
+                    department: formData.get('department'),
+                    day_of_week: formData.get('day_of_week'),
+                    time: formData.get('time'),
+                    teacherId: formData.get('teacherId'),
+                    level: formData.get('level')
+                };
+
+                console.log('Dodawanie grupy z danymi:', data);
+
+                const response = await fetch('/admin/addGroup', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    alert('Grupa została dodana pomyślnie.');
+                    window.location.href = '/admin/dashboard.html';
+                } else {
+                    const result = await response.json();
+                    alert('Błąd: ' + result.message);
+                }
+            });
+        });
+    </script>
+</body>
+
+</html>

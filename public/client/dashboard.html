@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dashboard Klienta</title>
+    <link rel="stylesheet" type="text/css" href="../css/styles.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(to right, #1e90ff 0%, #5e0563 100%);
+            margin: 0;
+            padding: 0;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin: 20px 0;
+        }
+
+        #logoutButton, #addChildButton, #searchGroupsButton {
+            display: block;
+            width: 200px;
+            padding: 10px;
+            margin: 10px auto;
+            background-color: #2b14da;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            text-align: center;
+            text-decoration: none;
+        }
+
+        #logoutButton:hover, #addChildButton:hover, #searchGroupsButton:hover {
+            background-color: #2b14da;
+        }
+
+        h2 {
+            text-align: center;
+            color: #333;
+        }
+
+        #groupInfo {
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 20px;
+            background: white;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+        }
+
+        #groupInfo div {
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            background: #f9f9f9;
+        }
+
+        #groupInfo strong {
+            color: #333;
+        }
+
+        hr {
+            border: 0;
+            height: 1px;
+            background: #ddd;
+        }
+
+        @media (max-width: 600px) {
+            body {
+                padding: 10px;
+            }
+
+            #groupInfo {
+                padding: 10px;
+            }
+
+            #logoutButton, #addChildButton, #searchGroupsButton {
+                width: 100%;
+                margin: 5px 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>Dashboard Klienta</h1>
+    <button id="logoutButton">Wyloguj się</button>
+    <button id="addChildButton">Dodaj dziecko</button>
+    <button id="searchGroupsButton">Szukaj grup</button>
+    <h2>Witaj ponownie, <span id="clientName"></span>!</h2>
+    <div id="groupInfo"></div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async function () {
+            const token = localStorage.getItem('token');
+            console.log('Token z localStorage:', token); // Dodano linię debugowania
+            if (!token) {
+                alert('Musisz być zalogowany, aby zobaczyć tę stronę.');
+                window.location.href = '../login.html';
+                return;
+            }
+
+            // Sprawdź rolę użytkownika
+            const roleResponse = await fetch('/role', {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (roleResponse.ok) {
+                const roleResult = await roleResponse.json();
+                if (roleResult.role !== 'client') {
+                    alert('Nie masz uprawnień do tej strony.');
+                    window.location.href = '../login.html';
+                    return;
+                }
+            } else {
+                alert('Nie udało się zweryfikować roli użytkownika.');
+                window.location.href = '../login.html';
+                return;
+            }
+
+            // Pobierz grupy klienta
+            try {
+                const response = await fetch('/client/groups', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (response.ok) {
+                    const groups = await response.json();
+                    console.log('Fetched groups:', groups); // Dodano linię debugowania
+                    const groupInfoDiv = document.getElementById('groupInfo');
+                    groupInfoDiv.innerHTML = '';
+
+                    groups.forEach(group => {
+                        const groupDiv = document.createElement('div');
+                        const time = group.time.split('T')[1].substring(0, 5);  // Sformatowanie godziny bez przesunięcia strefy czasowej
+                        groupDiv.innerHTML = `
+                            <strong>Dziecko:</strong> ${group.child_first_name} ${group.child_last_name}<br>
+                            <strong>Grupa:</strong> ${group.group_name}<br>
+                            <strong>Poziom:</strong> ${group.level}<br>
+                            <strong>Dzień:</strong> ${group.day}<br>
+                            <strong>Godzina:</strong> ${time}<br>
+                            <hr>
+                        `;
+                        groupInfoDiv.appendChild(groupDiv);
+                    });
+                } else {
+                    const result = await response.json();
+                    console.error('Error response from server:', result); // Dodano linię debugowania
+                    alert('Błąd: ' + result.message);
+                }
+            } catch (err) {
+                console.error('Error fetching groups:', err); // Dodano linię debugowania
+            }
+
+            // Pobierz profil klienta
+            try {
+                const profileResponse = await fetch('/client/profile', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (profileResponse.ok) {
+                    const profile = await profileResponse.json();
+                    console.log('Dane profilu klienta:', profile); // Dodano linię debugowania
+                    document.getElementById('clientName').textContent = profile.first_name + ' ' + profile.last_name;
+                } else {
+                    const result = await profileResponse.json();
+                    console.error('Error response from server:', result); // Dodano linię debugowania
+                    alert('Błąd: ' + result.message);
+                }
+            } catch (err) {
+                console.error('Error fetching profile:', err); // Dodano linię debugowania
+            }
+
+            document.getElementById('logoutButton').addEventListener('click', function() {
+                localStorage.removeItem('token');
+                window.location.href = '../index.html';  // Przenosi na stronę główną
+            });
+
+            document.getElementById('addChildButton').addEventListener('click', function() {
+                window.location.href = '../client/registerChild.html';  // Przenosi do strony dodawania dziecka
+            });
+
+            document.getElementById('searchGroupsButton').addEventListener('click', function() {
+                window.location.href = '../client/searchGroups.html';  // Przenosi do strony wyszukiwania grup
+            });
+        });
+    </script>
+</body>
+</html>

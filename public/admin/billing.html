@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Strona Rozliczeń</title>
+    <link rel="stylesheet" type="text/css" href="../css/styles.css">
+    <style>
+        /* Styl dla całego body */
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(to right, #8e44ad, #3498db);
+            margin: 0;
+            padding: 20px;
+            color: #ffffff;
+            text-align: center;
+        }
+
+        /* Styl dla nagłówków */
+        h1 {
+            margin-top: 20px;
+            font-size: 36px;
+            color: #ffffff;
+            text-shadow: 2px 2px 5px #333;
+        }
+
+        h2 {
+            font-size: 24px;
+            color: #ffffff;
+            text-shadow: 1px 1px 3px #333;
+        }
+
+        /* Styl dla etykiet */
+        label {
+            font-size: 18px;
+            margin-top: 10px;
+            color: #f7f7f7;
+            display: block;
+            text-align: left;
+            margin: 20px auto 10px auto;
+            width: 60%; /* Zmniejszona szerokość */
+        }
+
+        /* Styl dla selektorów i pola daty */
+        select,
+        input[type="month"] {
+            width: 60%; /* Zmniejszona szerokość */
+            padding: 8px; /* Zmniejszony padding */
+            margin: 10px 0;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        select:focus,
+        input[type="month"]:focus {
+            outline: none;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Styl dla przycisków */
+        button {
+            display: inline-block;
+            margin: 10px;
+            padding: 12px 20px;
+            background-color: #7f8c8d;
+            color: #ffffff;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 18px;
+            transition: background-color 0.3s, transform 0.3s;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+
+        button:hover {
+            background-color: #95a5a6;
+            transform: scale(1.05);
+        }
+
+        /* Styl dla kontenera z raportem */
+        #report {
+            background-color: rgba(255, 255, 255, 0.9);
+            border-radius: 10px;
+            color: #333;
+            padding: 20px;
+            margin: 20px auto;
+            width: 80%;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+            text-align: left;
+        }
+
+        #report p {
+            margin: 10px 0;
+            font-size: 16px;
+        }
+
+        /* Styl dla ukrytych przycisków */
+        #previewEmail,
+        #sendEmail {
+            display: none;
+        }
+
+        /* Styl dla podglądu maila */
+        #emailPreview {
+            display: none;
+            margin-top: 20px;
+            border: 1px solid #ccc;
+            padding: 10px;
+            background-color: #f9f9f9;
+            color: #000;
+            text-align: left;
+            font-family: 'Courier New', Courier, monospace; /* Użycie czcionki monospaced dla lepszej czytelności */
+            white-space: pre-wrap; /* Zachowanie formatowania tekstu */
+        }
+
+        /* Responsive */
+        @media (max-width: 600px) {
+            body {
+                padding: 10px;
+            }
+
+            select,
+            input[type="month"],
+            button {
+                width: 90%; /* Zmniejszona szerokość dla małych ekranów */
+                margin: 10px 0;
+            }
+
+            #report {
+                width: 100%;
+                padding: 10px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Strona Rozliczeń</h1>
+    <label for="department">Wybierz dział:</label>
+    <select id="department">
+        <option value="Język angielski">Język angielski</option>
+        <option value="Język niemiecki">Język niemiecki</option>
+        <option value="Język hiszpański">Język hiszpański</option>
+        <option value="Język polski">Język polski</option>
+        <option value="Matematyka">Matematyka</option>
+        <option value="Programowanie">Programowanie</option>
+        <option value="Gitara">Gitara</option>
+        <option value="Szachy">Szachy</option>
+    </select><br>
+
+    <label for="employee">Wybierz pracownika:</label>
+    <select id="employee"></select><br>
+
+    <label for="month">Wybierz miesiąc:</label>
+    <input type="month" id="month"><br>
+
+    <button id="generateReport">Generuj raport</button>
+    <button id="previewEmail" style="display:none;">Podgląd maila</button>
+    <button id="sendEmail" style="display:none;">Wyślij maila</button>
+    <button id="backToDashboard">Powrót do Dashboardu</button>
+
+    <div id="report"></div>
+    <div id="emailPreview"></div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async function () {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                alert('Musisz być zalogowany, aby zobaczyć tę stronę.');
+                window.location.href = '../login.html';
+                return;
+            }
+            const roleResponse = await fetch('/role', {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (roleResponse.ok) {
+                const roleResult = await roleResponse.json();
+                if (roleResult.role !== 'admin') {
+                    alert('Nie masz uprawnień do tej strony.');
+                    window.location.href = '../login.html';
+                    return;
+                }
+            } else {
+                alert('Nie udało się zweryfikować roli użytkownika.');
+                window.location.href = '../login.html';
+                return;
+            }
+
+            document.getElementById('department').addEventListener('change', async function () {
+                const department = this.value;
+
+                const response = await fetch(`/admin/employees?department=${department}`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (response.ok) {
+                    const employees = await response.json();
+                    const employeeSelect = document.getElementById('employee');
+                    employeeSelect.innerHTML = '';
+
+                    employees.forEach(employee => {
+                        const option = document.createElement('option');
+                        option.value = employee.id;
+                        option.textContent = `${employee.first_name} ${employee.last_name}`;
+                        employeeSelect.appendChild(option);
+                    });
+                } else {
+                    alert('Błąd podczas pobierania pracowników');
+                }
+            });
+
+            document.getElementById('generateReport').addEventListener('click', async function () {
+                const employeeId = document.getElementById('employee').value;
+                const month = document.getElementById('month').value;
+
+                const response = await fetch(`/admin/generateReport`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ employeeId, month })
+                });
+
+                if (response.ok) {
+                    const report = await response.json();
+                    displayReport(report);
+                    document.getElementById('sendEmail').style.display = 'block';
+                    document.getElementById('previewEmail').style.display = 'block';
+                } else {
+                    alert('Błąd podczas generowania raportu');
+                }
+            });
+
+            document.getElementById('previewEmail').addEventListener('click', function () {
+                const report = JSON.parse(document.getElementById('report').dataset.report);
+                const emailContent = generateEmailContent(report);
+                document.getElementById('emailPreview').innerHTML = `<pre>${emailContent}</pre>`;
+                document.getElementById('emailPreview').style.display = 'block';
+            });
+
+            document.getElementById('sendEmail').addEventListener('click', function () {
+                alert('Mail został wysłany do pracownika (symulacja).');
+            });
+
+            document.getElementById('backToDashboard').addEventListener('click', function () {
+                window.location.href = '/admin/dashboard.html';
+            });
+
+            function displayReport(report) {
+                const reportDiv = document.getElementById('report');
+                reportDiv.innerHTML = '';
+                reportDiv.dataset.report = JSON.stringify(report);
+
+                const header = document.createElement('h2');
+                header.textContent = `Raport dla ${report.employeeName} za ${report.month}`;
+                reportDiv.appendChild(header);
+
+                const summary = `
+                    <p>Dział: ${report.department}</p>
+                    <p>Stawka godzinowa: ${report.hourlyRate} zł</p>
+                    <p>Liczba przeprowadzonych zajęć: ${report.completedSessions}</p>
+                    <p>Kwota wypłaty: ${report.totalPayment} zł</p>
+                `;
+
+                reportDiv.innerHTML += summary;
+            }
+
+            function generateEmailContent(report) {
+                const selectedMonth = new Date(report.month);
+                const nextMonth = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() + 1, 15);
+                const feedbackDate = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() + 1, 5);
+
+                return `
+Dzień dobry ${report.employeeName},
+Przesyłam rozliczenie za miesiąc ${report.month}.
+
+${report.department}
+Wynagrodzenie: ${report.totalPayment} zł
+Stawka godzinowa (za jednostkę lekcyjną): ${report.hourlyRate} zł
+
+Liczba przepracowanych godzin: ${report.completedSessions}
+
+Wypłata wynagrodzenia za miesiąc ${report.month} następuje 15-go następnego miesiąca w wysokości wynikającej ze stawki godzinowej oraz liczby godzin przepracowanych w danym miesiącu, w oparciu o powyższe zestawienie.
+
+Uprzejmie proszę o weryfikację i zgłoszenie wszelkich uwag dotyczących liczby godzin w odpowiedzi na tę wiadomość do dnia 5-tego następnego miesiąca do godziny 15:00.
+
+Pozdrawiamy,
+Zespół Platforma Edukacyjna
+                `;
+            }
+        });
+    </script>
+</body>
+
+</html>

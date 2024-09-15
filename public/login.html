@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Logowanie</title>
+    <link rel="stylesheet" type="text/css" href="css/styles.css">
+</head>
+<body>
+    <h1>Logowanie</h1>
+    <form id="loginForm">
+        <label for="username">Nazwa użytkownika:</label><br>
+        <input type="text" id="username" name="username"><br>
+        <label for="password">Hasło:</label><br>
+        <input type="password" id="password" name="password"><br>
+        <input type="submit" value="Zaloguj się">
+    </form>
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const data = {
+                username: document.getElementById('username').value,
+                password: document.getElementById('password').value
+            };
+    
+            const response = await fetch('/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            });
+    
+            if (response.ok) {
+                const result = await response.json();
+                localStorage.setItem('token', result.token);
+                console.log('Token stored in localStorage:', result.token);
+    
+                const roleResponse = await fetch('/role', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${result.token}`
+                    }
+                });
+    
+                if (roleResponse.ok) {
+                    const roleResult = await roleResponse.json();
+                    if (roleResult.role === 'admin') {
+                       window.location.href = '/admin/dashboard.html';
+                    } else if (roleResult.role === 'client') {
+                       window.location.href = '/client/dashboard.html';
+                    } else if (roleResult.role === 'employee') {
+                       window.location.href = '/employee/dashboard.html';
+                    } else {
+                        alert('Nieznana rola użytkownika.');
+                    }
+                } else {
+                    alert('Nie udało się pobrać roli użytkownika.');
+                }
+            } else {
+                alert('Nieprawidłowa nazwa użytkownika lub hasło.');
+            }
+        });
+    </script>
+    
+</body>
+</html>
